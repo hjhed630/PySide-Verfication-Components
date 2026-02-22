@@ -1,10 +1,12 @@
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
 )
-
+from PySide6.QtGui import (
+    QPixmap,
+)
 from PySide6.QtCore import (
     QTimer,
     Signal,
@@ -23,10 +25,10 @@ from .url_image import VerificationImage
 class VerificationCard(QWidget):
 
     verificationSuccess = Signal()
+
     verificationFailed = Signal()
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
-
         super().__init__(parent=parent)
         self.vBoxLayout = QVBoxLayout(self)
 
@@ -40,25 +42,23 @@ class VerificationCard(QWidget):
         self.verifySlider.valueChanged.connect(self.verifyImage.setMoveX)
         self.verifySlider.resultSignal.connect(self.verify)
 
-        self.tolerance: int = 5
+        self.tolerance: int = 10
+
+        self.attemptCount: int = 0
+        self.maxAttempts: int = 5
 
     def verify(self, resultDict: dict) -> None:
-
         self.pixmapValue = self.verifyImage.getMoveX()
         self.correctValue = self.verifyImage.getCorrectValue()
-        if resultDict["result"]:
-
-            if abs(self.pixmapValue - self.correctValue) <= self.tolerance:
-                self.verificationSuccess.emit()
-                self.verifySlider.setSuccess(True)
-            else:
-                self.verificationFailed.emit()
-                self.verifyImage.refreshImage()
-                self.verifySlider.setSuccess(False)
-                self.verifySlider.setError(True)
+        if (
+            resultDict["result"]
+            and abs(self.pixmapValue - self.correctValue) <= self.tolerance
+        ):
+            self.verificationSuccess.emit()
+            self.verifySlider.setSuccess(True)
         else:
             self.verificationFailed.emit()
-            self.verifyImage.refreshImage()
+            self.verifyImage.refresh_image()
             self.verifySlider.setSuccess(False)
             self.verifySlider.setError(True)
 

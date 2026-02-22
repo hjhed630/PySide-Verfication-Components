@@ -103,6 +103,7 @@ class VerificationImage(QWidget):
     value = Property(int, getMoveX, setMoveX)
 
     def resetAnimation(self):
+
         self.animation = QPropertyAnimation(self, b"value")
         self.animation.setDuration(800)
         self.animation.setStartValue(self._moveX)
@@ -110,7 +111,7 @@ class VerificationImage(QWidget):
         self.animation.setEasingCurve(QEasingCurve.Type.OutQuint)
         self.animation.start()
 
-    def refreshImage(self):
+    def refresh_image(self):
 
         if (
             hasattr(self, "animation")

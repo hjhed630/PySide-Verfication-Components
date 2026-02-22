@@ -36,17 +36,14 @@ from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkRe
 class VerificationImage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        
 
         self._width = 300
         self._height = 169
         self.setFixedSize(self._width, self._height)
 
-        
         self.network_manager = QNetworkAccessManager(self)
         self.network_manager.finished.connect(self.on_image_downloaded)
 
-        
         self.currentImage = QPixmap(self._width, self._height)
         self.currentImage.fill(QColor(200, 200, 200))
 
@@ -54,95 +51,114 @@ class VerificationImage(QWidget):
         self.pixmapY = randint(40, self._height - 35 - 1)
         self._moveX = 1
 
-        
         self.loading = True
 
-        
         self.load_image_from_url("https://api.elaina.cat/random/pc")
 
     def load_image_from_url(self, url: str):
-        
-        self.loading = True  
-        self.update()  
+
+        self.loading = True
+        self.update()
         request = QNetworkRequest(QUrl(url))
         self.network_manager.get(request)
 
     def on_image_downloaded(self, reply: QNetworkReply):
-        
+
         if reply.error() != QNetworkReply.NetworkError.NoError:
             print(f"网络错误: {reply.errorString()}，使用本地图片备选")
-            self.fallback_to_local_image()
+            self.localImage()
         else:
-            
             data = reply.readAll()
             pixmap = QPixmap()
             if not pixmap.loadFromData(data):
                 print("图片数据解析失败，使用本地图片备选")
-                self.fallback_to_local_image()
+                self.localImage()
             else:
-                
+
                 self.currentImage = pixmap.scaled(
                     self._width,
                     self._height,
                     Qt.AspectRatioMode.IgnoreAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
-                
                 self.pixmapX = randint(50, self._width - 35 - 1)
                 self.pixmapY = randint(40, self._height - 35 - 1)
-                self.loading = False  
-                self.update()  
+                self.loading = False
+                self.update()
 
         reply.deleteLater()
 
-    def fallback_to_local_image(self):
-        
+    def create_puzzle_path(self, x, y, width, height, radius=None):
+
+        if radius is None:
+            radius = width // 7
+        rect_path = QPainterPath()
+        rect_path.addRect(x, y, width - radius, height)
+
+        circle_path = QPainterPath()
+        circle_x = x + width - 2 * radius
+        circle_y = y + (height - 2 * radius) / 2
+        circle_path.addEllipse(circle_x, circle_y, 2 * radius, 2 * radius)
+
+        return rect_path.united(circle_path)
+
+    def localImage(self):
         self.currentImage.fill(QColor(200, 200, 200))
-        
+
         self.pixmapX = randint(50, self._width - 35 - 1)
         self.pixmapY = randint(40, self._height - 35 - 1)
-        self.loading = False  
+        self.loading = False
         self.update()
 
     def paintEvent(self, event):
-        
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        
-        path = QPainterPath()
-        rect = QRectF(0, 0, self._width, self._height)
-        path.addRoundedRect(rect, 5, 5)
-        painter.setClipPath(path)
-        painter.drawPixmap(QPoint(0, 0), self.currentImage)
+        bg_path = QPainterPath()
+        bg_path.addRoundedRect(0, 0, self._width, self._height, 5, 5)
+        painter.setClipPath(bg_path)
+        painter.drawPixmap(0, 0, self.currentImage)
+        painter.setClipPath(bg_path, Qt.ClipOperation.NoClip)
 
-        
-        shadowPixmap = self.currentImage.copy(self.pixmapX, self.pixmapY, 35, 35)
-        shadowPainter = QPainter(shadowPixmap)
-        shadowPainter.setCompositionMode(
-            QPainter.CompositionMode.CompositionMode_SourceAtop
+        shape_size = 35
+        radius = shape_size // 3
+        shape_path = self.create_puzzle_path(
+            self.pixmapX, self.pixmapY, shape_size, shape_size, radius
         )
-        shadowPainter.fillRect(shadowPixmap.rect(), QColor(0, 0, 0, 150))
-        shadowPainter.end()
-        painter.drawPixmap(QPoint(self.pixmapX, self.pixmapY), shadowPixmap)
 
-        
-        movePixmap = self.currentImage.copy(self.pixmapX, self.pixmapY, 35, 35)
-        movePainter = QPainter(movePixmap)
-        movePainter.setPen(QPen(QColor(255, 255, 255), 2))
-        movePainter.setBrush(Qt.BrushStyle.NoBrush)
-        movePainter.drawRect(0, 0, 34, 34)
-        movePainter.end()
-        painter.drawPixmap(QPoint(self._moveX, self.pixmapY), movePixmap)
+        painter.save()
+        painter.setClipPath(shape_path)
+        shadow_pixmap = self.currentImage.copy(
+            self.pixmapX, self.pixmapY, shape_size, shape_size
+        )
+        painter.drawPixmap(self.pixmapX, self.pixmapY, shadow_pixmap)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
+        painter.fillRect(
+            QRect(self.pixmapX, self.pixmapY, shape_size, shape_size),
+            QColor(0, 0, 0, 150),
+        )
+        painter.restore()
 
-        
+        painter.save()
+        slider_path = QPainterPath(shape_path)
+        slider_path.translate(self._moveX - self.pixmapX, 0)
+        painter.setClipPath(slider_path)
+        slider_pixmap = self.currentImage.copy(
+            self.pixmapX, self.pixmapY, shape_size, shape_size
+        )
+        painter.drawPixmap(self._moveX, self.pixmapY, slider_pixmap)
+
+        painter.setClipping(False)
+        painter.setPen(QPen(QColor(255, 255, 255), 2))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(slider_path)
+        painter.restore()
+
         if self.loading:
             painter.save()
-            
             painter.setBrush(QColor(0, 0, 0, 150))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(0, 0, self._width, self._height, 5, 5)
-            
             painter.setPen(QColor(255, 255, 255))
             font = QFont("Microsoft YaHei", 16)
             painter.setFont(font)
@@ -165,7 +181,7 @@ class VerificationImage(QWidget):
     value = Property(int, getMoveX, setMoveX)
 
     def resetAnimation(self):
-        
+
         self.animation = QPropertyAnimation(self, b"value")
         self.animation.setDuration(800)
         self.animation.setStartValue(self._moveX)
@@ -173,8 +189,8 @@ class VerificationImage(QWidget):
         self.animation.setEasingCurve(QEasingCurve.Type.OutQuint)
         self.animation.start()
 
-    def refreshImage(self):
-        
+    def refresh_image(self):
+
         if (
             hasattr(self, "animation")
             and self.animation.state() == QPropertyAnimation.State.Running
@@ -183,15 +199,12 @@ class VerificationImage(QWidget):
             self.animation.deleteLater()
             delattr(self, "animation")
 
-        
         self.load_image_from_url("https://api.elaina.cat/random/pc")
-
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    
     window = QWidget()
     window.setWindowTitle("验证码图片加载测试")
     layout = QVBoxLayout(window)
@@ -199,11 +212,10 @@ if __name__ == "__main__":
     v_image = VerificationImage()
     layout.addWidget(v_image)
 
-    
     from PySide6.QtWidgets import QPushButton
 
     btn_refresh = QPushButton("刷新图片")
-    btn_refresh.clicked.connect(v_image.refreshImage)
+    btn_refresh.clicked.connect(v_image.refresh_image)
     layout.addWidget(btn_refresh)
 
     window.show()
