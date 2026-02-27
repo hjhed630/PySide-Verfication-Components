@@ -1,4 +1,3 @@
-
 import time
 from math import sqrt
 from PySide6.QtWidgets import QWidget
@@ -17,12 +16,11 @@ from PySide6.QtGui import QPainter, QColor, QPen
 
 
 class VerificationSlider(QWidget):
-    
 
     resultSignal = Signal(dict)
-    valueChanged = Signal(int)  
-    sliderPressed = Signal()  
-    sliderReleased = Signal()  
+    valueChanged = Signal(int)
+    sliderPressed = Signal()
+    sliderReleased = Signal()
 
     NORMAL_PEN = QColor(201, 204, 207)
     NORMAL_BRUSH = QColor(255, 255, 255)
@@ -75,10 +73,10 @@ class VerificationSlider(QWidget):
         self.brushColorAnimation.setDuration(200)
         self.brushColorAnimation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-        self.moveTrack = []  
-        self.startTime = 0  
-        self.endTime = 0  
-        self.isBot = False  
+        self.moveTrack = []
+        self.startTime = 0
+        self.endTime = 0
+        self.isBot = False
 
         self.resultDict = {"result": True, "value": 0, "endTime": 0, "msg": []}
 
@@ -248,7 +246,7 @@ class VerificationSlider(QWidget):
 
         painter.setBrush(QColor(247, 249, 250))
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRoundedRect(self.grooveRect, 5, 5)
+        painter.drawRoundedRect(self.grooveRect, 3, 3)
 
         if self._value > 0:
             filled_width = self._value
@@ -325,7 +323,6 @@ class VerificationSlider(QWidget):
             p2 = QPointF(center.x(), center.y() + 3)
             p3 = QPointF(center.x() + 6.3, center.y() - 3)
 
-            
             painter.drawLine(p1, p2)
             painter.drawLine(p2, p3)
 
@@ -487,7 +484,6 @@ class VerificationSlider(QWidget):
 
             self.resultSignal.emit(self.resultDict)
 
-        
         if total_time < 0.8 and avg_deviation < 1 and speed_std < 5:
             self.isBot = True
 
@@ -496,7 +492,6 @@ class VerificationSlider(QWidget):
 
             self.resultSignal.emit(self.resultDict)
 
-        
         if not self.isBot:
             self.resultDict["result"] = True
             self.resultDict["value"] = self._value * 300 // 266

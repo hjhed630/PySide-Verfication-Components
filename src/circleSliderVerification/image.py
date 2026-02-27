@@ -3,7 +3,7 @@ import time
 import random
 from random import randint
 from math import sqrt
-from typing import List, Optional
+from typing import List
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -26,81 +26,40 @@ from PySide6.QtCore import (
     QRectF,
     QRect,
     Property,
-    QUrl,
-    QByteArray,
 )
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QPen, QPainterPath
-from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 
 
 class VerificationImage(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, imageList: List[QPixmap] = [], parent=None):
         super().__init__(parent=parent)
+        self.imageList = imageList
 
         self._width = 300
         self._height = 169
         self.setFixedSize(self._width, self._height)
 
-        self.network_manager = QNetworkAccessManager(self)
-        self.network_manager.finished.connect(self.on_image_downloaded)
-
-        self.currentImage = QPixmap(self._width, self._height)
-        self.currentImage.fill(QColor(200, 200, 200))
+        try:
+            idx = randint(0, 12)
+            self.currentImage = self.imageList[idx].scaled(
+                self._width,
+                self._height,
+                Qt.AspectRatioMode.IgnoreAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            if self.currentImage.isNull():
+                raise Exception("图片加载失败")
+        except Exception as e:
+            print(f"图片加载失败: {e}，使用灰色背景")
+            self.currentImage = QPixmap(self._width, self._height)
+            self.currentImage.fill(QColor(200, 200, 200))
 
         self.pixmapX = randint(50, self._width - 35 - 1)
         self.pixmapY = randint(40, self._height - 35 - 1)
+
         self._moveX = 1
 
-        self.loading = True
-
-        self.load_image_from_url("https://api.elaina.cat/random/pc")
-
-    def load_image_from_url(self, url: str):
-
-        self.loading = True
-        self.update()
-        request = QNetworkRequest(QUrl(url))
-        self.network_manager.get(request)
-
-    def on_image_downloaded(self, reply: QNetworkReply):
-
-        if reply.error() != QNetworkReply.NetworkError.NoError:
-            print(f"网络错误: {reply.errorString()}，使用本地图片备选")
-            self.fallback_to_local_image()
-        else:
-
-            data = reply.readAll()
-            pixmap = QPixmap()
-            if not pixmap.loadFromData(data):
-                print("图片数据解析失败，使用本地图片备选")
-                self.fallback_to_local_image()
-            else:
-
-                self.currentImage = pixmap.scaled(
-                    self._width,
-                    self._height,
-                    Qt.AspectRatioMode.IgnoreAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-
-                self.pixmapX = randint(50, self._width - 35 - 1)
-                self.pixmapY = randint(40, self._height - 35 - 1)
-                self.loading = False
-                self.update()
-
-        reply.deleteLater()
-
-    def fallback_to_local_image(self):
-
-        self.currentImage.fill(QColor(200, 200, 200))
-
-        self.pixmapX = randint(50, self._width - 35 - 1)
-        self.pixmapY = randint(40, self._height - 35 - 1)
-        self.loading = False
-        self.update()
-
     def paintEvent(self, event):
-
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -115,7 +74,7 @@ class VerificationImage(QWidget):
         shadowPainter.setCompositionMode(
             QPainter.CompositionMode.CompositionMode_SourceAtop
         )
-        shadowPainter.fillRect(shadowPixmap.rect(), QColor(0, 0, 0, 200))
+        shadowPainter.fillRect(shadowPixmap.rect(), QColor(0, 0, 0, 150))
         shadowPainter.end()
         painter.drawPixmap(QPoint(self.pixmapX, self.pixmapY), shadowPixmap)
 
@@ -127,22 +86,10 @@ class VerificationImage(QWidget):
         movePainter.end()
         painter.drawPixmap(QPoint(self._moveX, self.pixmapY), movePixmap)
 
-        if self.loading:
-            painter.save()
-
-            painter.setBrush(QColor(0, 0, 0, 150))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(0, 0, self._width, self._height, 5, 5)
-
-            painter.setPen(QColor(255, 255, 255))
-            font = QFont("Microsoft YaHei", 16)
-            painter.setFont(font)
-            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "加载中...")
-            painter.restore()
-
         super().paintEvent(event)
 
     def setMoveX(self, mapped_value):
+
         internal_value = int(mapped_value * 266 / 300)
         self._moveX = 1 + internal_value
         self.update()
@@ -156,7 +103,6 @@ class VerificationImage(QWidget):
     value = Property(int, getMoveX, setMoveX)
 
     def resetAnimation(self):
-
         self.animation = QPropertyAnimation(self, b"value")
         self.animation.setDuration(800)
         self.animation.setStartValue(self._moveX)
@@ -172,6 +118,25 @@ class VerificationImage(QWidget):
         ):
             self.animation.stop()
             self.animation.deleteLater()
+
             delattr(self, "animation")
 
-        self.load_image_from_url("https://api.elaina.cat/random/pc")
+        try:
+            idx = randint(0, len(self.imageList) - 1)
+            self.currentImage = QPixmap(self.imageList[idx]).scaled(
+                self._width,
+                self._height,
+                Qt.AspectRatioMode.IgnoreAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            if self.currentImage.isNull():
+                raise Exception("图片加载失败")
+        except Exception as e:
+            print(f"图片加载失败: {e}，使用灰色背景")
+            self.currentImage = QPixmap(self._width, self._height)
+            self.currentImage.fill(QColor(200, 200, 200))
+
+        self.pixmapX = randint(50, self._width - 35 - 1)
+        self.pixmapY = randint(40, self._height - 35 - 1)
+
+        self.setMoveX(0)

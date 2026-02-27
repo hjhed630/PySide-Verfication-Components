@@ -135,7 +135,7 @@ class VerificationImage(QWidget):
         painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
         painter.fillRect(
             QRect(self.pixmapX, self.pixmapY, shape_size, shape_size),
-            QColor(0, 0, 0, 150),
+            QColor(0, 0, 0, 200),
         )
         painter.restore()
 

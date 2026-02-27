@@ -9,6 +9,8 @@ from PySide6.QtWidgets import (
 
 from src.basicSliderVerification import VerificationFlyout as NormalVerificationFlyout
 from src.figureSliderVerification import VerificationFlyout as FigureVerificationFlyout
+from src.circleSliderVerification import VerificationFlyout as CircleVerificationFlyout
+from src.textClickVerification import VerificationFlyout as TextClickVerificationFlyout
 
 
 class Demo(QWidget):
@@ -27,6 +29,14 @@ class Demo(QWidget):
         fighureVer.clicked.connect(self.showFigureVer)
         layout.addWidget(fighureVer, 0, 1)
 
+        circleVer = QPushButton("圆形滑动验证码", self)
+        circleVer.clicked.connect(self.showCircleVer)
+        layout.addWidget(circleVer, 1, 0)
+
+        textClickVer = QPushButton("文字点选验证码", self)
+        textClickVer.clicked.connect(self.showTextClickVer)
+        layout.addWidget(textClickVer, 1, 1)
+
     def showNormalVer(self):
 
         a = NormalVerificationFlyout.create(target=self.sender(), parent=self)
@@ -35,6 +45,16 @@ class Demo(QWidget):
     def showFigureVer(self):
 
         a = FigureVerificationFlyout.create(target=self.sender(), parent=self)
+        a.success.connect(lambda: print("成功"))
+
+    def showCircleVer(self):
+
+        a = CircleVerificationFlyout.create(target=self.sender(), parent=self)
+        a.success.connect(lambda: print("成功"))
+
+    def showTextClickVer(self):
+
+        a = TextClickVerificationFlyout.create(target=self.sender(), parent=self)
         a.success.connect(lambda: print("成功"))
 
 

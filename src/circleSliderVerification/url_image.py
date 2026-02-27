@@ -1,0 +1,257 @@
+import sys
+import random
+import math
+from PySide6.QtWidgets import (
+    QApplication,
+    QWidget,
+    QSlider,
+    QMessageBox,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+)
+from PySide6.QtCore import (
+    Qt,
+    QPropertyAnimation,
+    QEasingCurve,
+    QPoint,
+    QRectF,
+    QUrl,
+    Property,
+    QPointF,
+)
+from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QPen, QPainterPath
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+
+
+class VerificationImage(QWidget):
+    
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+
+        self._width = 300
+        self._height = 169
+        self.setFixedSize(self._width, self._height)
+
+        
+        self.network_manager = QNetworkAccessManager(self)
+        self.network_manager.finished.connect(self.on_image_downloaded)
+
+        
+        self.currentImage = QPixmap(self._width, self._height)
+        self.currentImage.fill(QColor(200, 200, 200))
+
+        
+        self.centerX = self._width // 2  
+        self.centerY = self._height // 2  
+        self.radius = 60  
+        self.gapAngle = 0.0  
+        self.gapX = 0  
+        self.gapY = 0  
+        self.currentAngle = 0.0  
+        self.angleTolerance = 0.1  
+        self.positionTolerance = 5  
+
+        
+        self.sliderPixmap = None
+
+        
+        self.loading = True
+
+        
+        self.load_image_from_url("https://api.elaina.cat/random/pc")
+
+    def load_image_from_url(self, url: str):
+        self.loading = True
+        self.update()
+        request = QNetworkRequest(QUrl(url))
+        self.network_manager.get(request)
+
+    def on_image_downloaded(self, reply: QNetworkReply):
+        if reply.error() != QNetworkReply.NetworkError.NoError:
+            print(f"网络错误: {reply.errorString()}，使用本地图片备选")
+            self.fallback_to_local_image()
+        else:
+            data = reply.readAll()
+            pixmap = QPixmap()
+            if not pixmap.loadFromData(data):
+                print("图片数据解析失败，使用本地图片备选")
+                self.fallback_to_local_image()
+            else:
+                self.currentImage = pixmap.scaled(
+                    self._width,
+                    self._height,
+                    Qt.AspectRatioMode.IgnoreAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                
+                self.generate_circle_and_gap()
+                self.loading = False
+                self.update()
+        reply.deleteLater()
+
+    def fallback_to_local_image(self):
+        self.currentImage.fill(QColor(200, 200, 200))
+        self.generate_circle_and_gap()
+        self.loading = False
+        self.update()
+
+    def generate_circle_and_gap(self):
+        
+        max_attempts = 100
+        for _ in range(max_attempts):
+            
+            cx = random.randint(50, self._width - 50)
+            cy = random.randint(50, self._height - 50)
+            
+            max_r = (
+                min(cx, self._width - cx, cy, self._height - cy) - 18
+            )  
+            if max_r < 30:
+                continue
+            r = random.randint(30, int(max_r))
+            
+            angle = random.uniform(0, 2 * math.pi)
+            gx = cx + r * math.cos(angle)
+            gy = cy + r * math.sin(angle)
+            
+            if (18 <= gx <= self._width - 18) and (18 <= gy <= self._height - 18):
+                self.centerX = cx
+                self.centerY = cy
+                self.radius = r
+                self.gapAngle = angle
+                self.gapX = gx
+                self.gapY = gy
+                
+                self.sliderPixmap = self.currentImage.copy(
+                    int(gx - 17.5), int(gy - 17.5), 35, 35
+                )
+                self.currentAngle = 0.0  
+                return
+        
+        self.centerX = self._width // 2
+        self.centerY = self._height // 2
+        self.radius = 60
+        self.gapAngle = 0.0
+        self.gapX = self.centerX + self.radius
+        self.gapY = self.centerY
+        self.sliderPixmap = self.currentImage.copy(
+            int(self.gapX - 17.5), int(self.gapY - 17.5), 35, 35
+        )
+        self.currentAngle = 0.0
+
+    def setAngle(self, mapped_value: float):
+        
+        
+        actual_deg = (mapped_value / 300.0) * 360.0
+        self.currentAngle = math.radians(actual_deg)
+        self.update()
+
+    def getAngleDeg(self) -> float:
+        
+        actual_deg = math.degrees(self.currentAngle)
+        mapped = (actual_deg / 360.0) * 300.0
+        
+        return max(0.0, min(300.0, mapped))
+
+        
+
+    angleDeg = Property(float, getAngleDeg, setAngle)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        
+        path = QPainterPath()
+        rect = QRectF(0, 0, self._width, self._height)
+        path.addRoundedRect(rect, 5, 5)
+        painter.setClipPath(path)
+        painter.drawPixmap(0, 0, self.currentImage)
+
+        
+        painter.setPen(QPen(QColor(255, 255, 255, 150), 2, Qt.PenStyle.DashLine))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(
+            QPointF(self.centerX, self.centerY), self.radius, self.radius
+        )
+
+        
+        shadowPixmap = self.currentImage.copy(
+            int(self.gapX - 17.5), int(self.gapY - 17.5), 35, 35
+        )
+        shadowPainter = QPainter(shadowPixmap)
+        shadowPainter.setCompositionMode(
+            QPainter.CompositionMode.CompositionMode_SourceAtop
+        )
+        shadowPainter.fillRect(shadowPixmap.rect(), QColor(0, 0, 0, 200))
+        shadowPainter.end()
+        painter.drawPixmap(
+            QPoint(int(self.gapX - 17.5), int(self.gapY - 17.5)), shadowPixmap
+        )
+
+        if self.sliderPixmap:
+            
+            sx = self.centerX + self.radius * math.cos(self.currentAngle)
+            sy = self.centerY + self.radius * math.sin(self.currentAngle)
+            
+            painter.save()
+            painter.translate(sx, sy)
+            
+            painter.drawPixmap(QPoint(-17, -17), self.sliderPixmap)
+            
+            painter.setPen(QPen(QColor(255, 255, 255), 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(-17, -17, 34, 34)
+            painter.restore()
+
+        
+        if self.loading:
+            painter.save()
+            painter.setBrush(QColor(0, 0, 0, 150))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(0, 0, self._width, self._height, 5, 5)
+            painter.setPen(QColor(255, 255, 255))
+            font = QFont("Microsoft YaHei", 16)
+            painter.setFont(font)
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "加载中...")
+            painter.restore()
+
+        super().paintEvent(event)
+
+    def resetAnimation(self):
+
+        if (
+            hasattr(self, "animation")
+            and self.animation.state() == QPropertyAnimation.State.Running
+        ):
+            self.animation.stop()
+            self.animation.deleteLater()
+            delattr(self, "animation")
+        self.animation = QPropertyAnimation(self, b"angleDeg")
+        self.animation.setDuration(800)
+        self.animation.setStartValue(self.getAngleDeg())  
+        self.animation.setEndValue(0)
+        self.animation.setEasingCurve(QEasingCurve.Type.OutQuint)
+        self.animation.start()
+
+    def refreshImage(self):
+
+        if (
+            hasattr(self, "animation")
+            and self.animation.state() == QPropertyAnimation.State.Running
+        ):
+            self.animation.stop()
+            self.animation.deleteLater()
+            delattr(self, "animation")
+        self.load_image_from_url("https://api.elaina.cat/random/pc")
+
+    def verify(self) -> bool:
+
+        sx = self.centerX + self.radius * math.cos(self.currentAngle)
+        sy = self.centerY + self.radius * math.sin(self.currentAngle)
+
+        dist = math.hypot(sx - self.gapX, sy - self.gapY)
+        return dist <= self.positionTolerance
