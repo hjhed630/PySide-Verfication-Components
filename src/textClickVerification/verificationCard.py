@@ -43,14 +43,14 @@ class VerificationCard(QWidget):
         self.vBoxLayout.addWidget(self.tipLabel)
 
         self.verifyImage.verificationComplete.connect(self.verify)
-        
-        
-        if hasattr(self.verifyImage, 'network_manager'):
-            self.verifyImage.network_manager.finished.connect(self.onImageLoaded)
+
+
+        if hasattr(self.verifyImage, 'networkManager'):
+            self.verifyImage.networkManager.finished.connect(self.onImageLoaded)
 
     def onImageLoaded(self):
-        
-        self.tipLabel.setText(self.verifyImage.verification_text)
+
+        self.tipLabel.setText(self.verifyImage.verificationText)
 
     def verify(self, success: bool, correct: list) -> None:
 
@@ -59,13 +59,13 @@ class VerificationCard(QWidget):
         else:
             self.verificationFailed.emit()
             self.verifyImage.refreshImage()
-            
+
             QTimer.singleShot(100, self.onImageLoaded)
 
     def showEvent(self, event):
         super().showEvent(event)
-        
-        self.tipLabel.setText(self.verifyImage.verification_text)
+
+        self.tipLabel.setText(self.verifyImage.verificationText)
 
 
 class VerificationFlyoutView(FlyoutView):
